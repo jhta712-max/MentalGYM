@@ -260,7 +260,10 @@ window.MathJax = {
     dificultadActual: "Medio",
     ultimoEjercicio: null,
     respondido: false,
+    historialEnunciados: [], // últimos enunciados generados en esta sesión, para pedirle a la IA que no los repita
   };
+
+  const HISTORIAL_MAX = 8;
 
   const NIVELES = ["Fácil", "Medio", "Difícil"];
 
@@ -332,6 +335,7 @@ window.MathJax = {
     state.racha = 0;
     state.mejorRacha = 0;
     state.dificultadActual = "Medio";
+    state.historialEnunciados = [];
     el("app-secret").value = "";
     el("groq-model").value = "";
     el("gemini-model").value = "";
@@ -403,11 +407,12 @@ window.MathJax = {
   const SUPABASE_URL = "https://xbnnnkrlysckjqasboot.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhibm5ua3JseXNja2pxYXNib290Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3NTg4ODgsImV4cCI6MjEwMzMzNDg4OH0.QfjJrIO9szuHSyHhAhcQqp8jBuc3eHgJWEUeDLKlSno";
 
-  async function llamarProxy(provider, systemPrompt, userPrompt) {
+  async function llamarProxy(provider, systemPrompt, userPrompt, temperature) {
     const secreto = el("app-secret").value.trim();
     const model = provider === "groq" ? el("groq-model").value.trim() : el("gemini-model").value.trim();
     const body = { provider: provider, systemPrompt: systemPrompt, userPrompt: userPrompt };
     if (model) body.model = model;
+    if (typeof temperature === "number") body.temperature = temperature;
     const resp = await fetch(SUPABASE_URL + "/functions/v1/ai-proxy", {
       method: "POST",
       headers: {
@@ -436,7 +441,9 @@ window.MathJax = {
 
   async function llamarIA(rol, systemPrompt, userPrompt) {
     const cfg = configDeRol(rol);
-    return llamarProxy(cfg.provider, systemPrompt, userPrompt);
+    // El generador necesita variedad (temperatura alta); el evaluador necesita rigor (temperatura baja).
+    const temperature = rol === "generador" ? 1.05 : 0.2;
+    return llamarProxy(cfg.provider, systemPrompt, userPrompt, temperature);
   }
 
   function mostrarCargando(mensaje) {
@@ -472,14 +479,27 @@ window.MathJax = {
     "Respondes EXCLUSIVAMENTE con un objeto JSON válido, sin texto antes ni después, sin backticks. " +
     "Cada ejercicio es de opción múltiple con exactamente 4 opciones (A, B, C, D) y una sola correcta. " +
     "Usa notación LaTeX con delimitadores $...$ para cualquier fórmula matemática. " +
-    "Varía los números y planteamientos; evita repetir siempre el mismo ejercicio de libro de texto.";
+    "Tienes una tendencia conocida a repetir siempre los mismos ejemplos clásicos de libro de texto " +
+    "(como el límite de sin(x)/x, la derivada de x^2, o silogismos idénticos); DEBES evitarlo activamente " +
+    "usando funciones, números, contextos y estructuras distintas cada vez, incluso dentro del mismo tema.";
 
-  function promptGenerador(tema, dificultad) {
+  function promptGenerador(tema, dificultad, historial) {
+    const semilla = Math.floor(Math.random() * 900) + 100;
+    let evitar = "";
+    if (historial && historial.length) {
+      evitar =
+        "\n\nEstos son enunciados que YA se usaron en esta sesión (de este tema u otros) — " +
+        "el nuevo ejercicio debe ser claramente distinto de todos ellos en función/estructura, no solo en los números:\n" +
+        historial.map((h, i) => (i + 1) + ". " + h).join("\n") + "\n";
+    }
     return (
       'Genera UN ejercicio nuevo de opción múltiple sobre el tema "' + tema + '" ' +
       'con nivel de dificultad "' + dificultad + '" (Fácil = repaso de conceptos básicos, ' +
       'Medio = requiere aplicar 2-3 pasos, Difícil = requiere combinar varios conceptos o casos especiales). ' +
-      "Responde EXCLUSIVAMENTE con un JSON con esta forma exacta:\n" +
+      'Incorpora de forma natural el número ' + semilla + ' en alguno de los datos del ejercicio ' +
+      '(un coeficiente, un límite, un exponente, una cantidad del enunciado, etc.) para forzar variedad real. ' +
+      evitar +
+      "\nResponde EXCLUSIVAMENTE con un JSON con esta forma exacta:\n" +
       '{"enunciado": "planteamiento del problema, con LaTeX $...$ si aplica", ' +
       '"opciones": {"A": "...", "B": "...", "C": "...", "D": "..."}, ' +
       '"respuesta_correcta": "A|B|C|D", ' +
@@ -515,12 +535,14 @@ window.MathJax = {
     const dificultad = el("sel-dificultad").value;
     mostrarCargando("Generando ejercicio de " + tema.toLowerCase() + " (" + dificultad.toLowerCase() + ")…");
     try {
-      const ej = await llamarIA("generador", SYSTEM_GENERADOR, promptGenerador(tema, dificultad));
+      const ej = await llamarIA("generador", SYSTEM_GENERADOR, promptGenerador(tema, dificultad, state.historialEnunciados));
       if (!ej || !ej.enunciado || !ej.opciones || !ej.respuesta_correcta) {
         throw new Error("La IA generadora devolvió un formato inesperado.");
       }
       state.ultimoEjercicio = { tema, dificultad, ...ej };
       state.respondido = false;
+      state.historialEnunciados.push(ej.enunciado);
+      if (state.historialEnunciados.length > HISTORIAL_MAX) state.historialEnunciados.shift();
       pintarEjercicio();
     } catch (err) {
       mostrarError("Error al generar el ejercicio.", err.message);
