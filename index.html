@@ -183,9 +183,20 @@ window.MathJax = {
         </select>
       </div>
     </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="groq-model">Modelo de Groq (opcional)</label>
+        <input type="text" id="groq-model" placeholder="por defecto: openai/gpt-oss-120b">
+      </div>
+      <div class="field">
+        <label for="gemini-model">Modelo de Gemini (opcional)</label>
+        <input type="text" id="gemini-model" placeholder="por defecto: gemini-2.5-flash">
+      </div>
+    </div>
     <p class="hint">
       Las API keys de Groq y Gemini ya NO se piden aquí: viven de forma segura en un servidor (Supabase Edge Function) y nunca llegan a este navegador.
       Esta página solo necesita tu <strong>clave de acceso</strong> personal para poder usar ese servidor — evita que desconocidos que encuentren esta URL pública gasten tu cuota gratuita de IA.
+      Los campos de modelo son opcionales: solo llénalos si Groq o Gemini retiran el modelo por defecto y necesitas apuntar a otro sin esperar a que se actualice el servidor.
     </p>
     <div class="checkbox-row">
       <input type="checkbox" id="chk-recordar" checked>
@@ -288,7 +299,11 @@ window.MathJax = {
   function guardarKeysSiCorresponde() {
     try {
       if (el("chk-recordar").checked) {
-        localStorage.setItem(KEYS_KEY, JSON.stringify({ secret: el("app-secret").value }));
+        localStorage.setItem(KEYS_KEY, JSON.stringify({
+          secret: el("app-secret").value,
+          groqModel: el("groq-model").value,
+          geminiModel: el("gemini-model").value,
+        }));
       } else {
         localStorage.removeItem(KEYS_KEY);
       }
@@ -301,6 +316,8 @@ window.MathJax = {
       if (!raw) return;
       const k = JSON.parse(raw);
       if (k.secret) el("app-secret").value = k.secret;
+      if (k.groqModel) el("groq-model").value = k.groqModel;
+      if (k.geminiModel) el("gemini-model").value = k.geminiModel;
       el("chk-recordar").checked = true;
     } catch (e) { /* ignoramos datos corruptos */ }
   }
@@ -316,6 +333,8 @@ window.MathJax = {
     state.mejorRacha = 0;
     state.dificultadActual = "Medio";
     el("app-secret").value = "";
+    el("groq-model").value = "";
+    el("gemini-model").value = "";
     el("chk-recordar").checked = false;
     el("sel-dificultad").value = "Medio";
     pintarStats();
@@ -386,6 +405,9 @@ window.MathJax = {
 
   async function llamarProxy(provider, systemPrompt, userPrompt) {
     const secreto = el("app-secret").value.trim();
+    const model = provider === "groq" ? el("groq-model").value.trim() : el("gemini-model").value.trim();
+    const body = { provider: provider, systemPrompt: systemPrompt, userPrompt: userPrompt };
+    if (model) body.model = model;
     const resp = await fetch(SUPABASE_URL + "/functions/v1/ai-proxy", {
       method: "POST",
       headers: {
@@ -394,7 +416,7 @@ window.MathJax = {
         "apikey": SUPABASE_ANON_KEY,
         "x-app-secret": secreto,
       },
-      body: JSON.stringify({ provider: provider, systemPrompt: systemPrompt, userPrompt: userPrompt }),
+      body: JSON.stringify(body),
     });
     const data = await resp.json().catch(() => null);
     if (!resp.ok) {
@@ -612,6 +634,8 @@ window.MathJax = {
 
   el("btn-nuevo").addEventListener("click", generarEjercicio);
   el("app-secret").addEventListener("input", guardarKeysSiCorresponde);
+  el("groq-model").addEventListener("input", guardarKeysSiCorresponde);
+  el("gemini-model").addEventListener("input", guardarKeysSiCorresponde);
   el("chk-recordar").addEventListener("change", guardarKeysSiCorresponde);
   el("btn-borrar-datos").addEventListener("click", () => {
     if (confirm("¿Borrar tu progreso y la clave de acceso guardada en este dispositivo? Esta acción no se puede deshacer.")) {
