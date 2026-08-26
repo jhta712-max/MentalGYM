@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gimnasio Mental</title>
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['$', '$'], ['\\(', '\\)']],
+    displayMath: [['$$', '$$'], ['\\[', '\\]']]
+  },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+<style>
+  :root {
+    --bg: #f4f5f9;
+    --panel: #ffffff;
+    --panel-border: #e2e4ee;
+    --text: #232538;
+    --text-dim: #676b85;
+    --accent: #5b5fe0;
+    --accent-dim: #eceafc;
+    --accent-contrast: #ffffff;
+    --good: #1a8a5f;
+    --good-bg: #e6f7ef;
+    --bad: #c23b4f;
+    --bad-bg: #fceced;
+    --warn: #a3691a;
+    --warn-bg: #fdf3e2;
+    --radius: 14px;
+    --shadow: 0 2px 10px rgba(30, 33, 60, 0.06), 0 1px 2px rgba(30,33,60,0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14151f;
+      --panel: #1c1e2b;
+      --panel-border: #2c2f42;
+      --text: #e9eaf5;
+      --text-dim: #a2a5c0;
+      --accent: #8b8ef7;
+      --accent-dim: #292a4a;
+      --accent-contrast: #14151f;
+      --good: #4fd39a;
+      --good-bg: #113328;
+      --bad: #f27686;
+      --bad-bg: #3a1d24;
+      --warn: #e3b25b;
+      --warn-bg: #3a2f16;
+      --shadow: 0 2px 14px rgba(0,0,0,0.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 20px 80px; }
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+  header h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.02em; }
+  header p { margin: 0; color: var(--text-dim); font-size: 0.92rem; }
+  .icon-btn {
+    background: var(--panel); border: 1px solid var(--panel-border); color: var(--text);
+    border-radius: 10px; width: 40px; height: 40px; flex-shrink: 0; cursor: pointer;
+    font-size: 1.1rem; display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow);
+  }
+  .icon-btn:hover { border-color: var(--accent); }
+  .panel {
+    background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--radius);
+    padding: 18px 20px; margin-bottom: 18px; box-shadow: var(--shadow);
+  }
+  .panel h2 { font-size: 0.95rem; margin: 0 0 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 0.8rem; color: var(--text-dim); }
+  .field input, .field select {
+    background: var(--bg); border: 1px solid var(--panel-border); color: var(--text);
+    border-radius: 8px; padding: 8px 10px; font-size: 0.9rem; font-family: inherit;
+  }
+  .field input:focus, .field select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .hint { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; }
+  .hint a { color: var(--accent); }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 0.88rem; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 16px; }
+  .controls .field { min-width: 150px; }
+  button.primary {
+    background: var(--accent); color: var(--accent-contrast); border: none; border-radius: 10px;
+    padding: 10px 18px; font-size: 0.92rem; font-weight: 600; cursor: pointer;
+  }
+  button.primary:disabled { opacity: 0.5; cursor: default; }
+  button.primary:hover:not(:disabled) { filter: brightness(1.06); }
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px;
+    padding: 10px 14px; text-align: center; flex: 1; min-width: 90px; box-shadow: var(--shadow);
+  }
+  .stat .num { font-size: 1.3rem; font-weight: 700; }
+  .stat .lbl { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; }
+  #question-area { min-height: 40px; }
+  .qcard { background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow); }
+  .qcard .topic-tag {
+    display: inline-block; font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.03em; color: var(--accent); background: var(--accent-dim);
+    padding: 3px 9px; border-radius: 999px; margin-bottom: 12px;
+  }
+  .enunciado { font-size: 1.08rem; margin-bottom: 18px; }
+  .opciones { display: grid; gap: 10px; }
+  .opcion-btn {
+    display: flex; gap: 10px; align-items: flex-start; text-align: left;
+    background: var(--bg); border: 1.5px solid var(--panel-border); color: var(--text);
+    border-radius: 10px; padding: 12px 14px; font-size: 0.96rem; cursor: pointer; font-family: inherit;
+  }
+  .opcion-btn:hover:not(:disabled) { border-color: var(--accent); }
+  .opcion-btn .letra {
+    flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; background: var(--accent-dim); color: var(--accent);
+    font-weight: 700; font-size: 0.8rem; display: flex; align-items: center; justify-content: center;
+  }
+  .opcion-btn:disabled { cursor: default; opacity: 0.85; }
+  .opcion-btn.correcta { border-color: var(--good); background: var(--good-bg); }
+  .opcion-btn.correcta .letra { background: var(--good); color: #fff; }
+  .opcion-btn.incorrecta { border-color: var(--bad); background: var(--bad-bg); }
+  .opcion-btn.incorrecta .letra { background: var(--bad); color: #fff; }
+  .feedback { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--panel-border); }
+  .feedback .veredicto { font-weight: 700; font-size: 1.02rem; margin-bottom: 10px; }
+  .feedback .veredicto.ok { color: var(--good); }
+  .feedback .veredicto.no { color: var(--bad); }
+  .explicacion-block { margin-bottom: 12px; }
+  .explicacion-block h3 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-dim); margin: 0 0 4px; }
+  .warn-box { background: var(--warn-bg); color: var(--warn); border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; margin-bottom: 12px; }
+  .error-box { background: var(--bad-bg); color: var(--bad); border-radius: 8px; padding: 12px 14px; font-size: 0.88rem; margin-bottom: 14px; }
+  .loading { display: flex; align-items: center; gap: 10px; color: var(--text-dim); font-size: 0.92rem; padding: 30px 0; justify-content: center; }
+  .spinner { width: 18px; height: 18px; border: 2.5px solid var(--accent-dim); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty-state { text-align: center; color: var(--text-dim); padding: 40px 20px; }
+  footer { text-align: center; color: var(--text-dim); font-size: 0.78rem; margin-top: 30px; }
+  details#config-panel[open] .icon-btn { border-color: var(--accent); }
+  .row-buttons { display: flex; gap: 10px; margin-top: 16px; }
+  button.secondary {
+    background: transparent; border: 1px solid var(--panel-border); color: var(--text);
+    border-radius: 10px; padding: 9px 16px; font-size: 0.88rem; cursor: pointer; font-family: inherit;
+  }
+  button.secondary:hover { border-color: var(--accent); color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>🧠 Gimnasio Mental</h1>
+      <p>Límites · Integrales · Derivadas · Álgebra · Lógica — generado y verificado con IA</p>
+    </div>
+    <button class="icon-btn" id="btn-config-toggle" title="Configuración" aria-label="Configuración">⚙️</button>
+  </header>
+
+  <div class="panel" id="config-panel" style="display:none;">
+    <h2>Configuración de IA</h2>
+    <div class="field-row">
+      <div class="field">
+        <label for="groq-key">API key de Groq</label>
+        <input type="password" id="groq-key" placeholder="gsk_...">
+      </div>
+      <div class="field">
+        <label for="gemini-key">API key de Gemini</label>
+        <input type="password" id="gemini-key" placeholder="AIza...">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="groq-model">Modelo de Groq</label>
+        <input type="text" id="groq-model" value="llama-3.3-70b-versatile">
+      </div>
+      <div class="field">
+        <label for="gemini-model">Modelo de Gemini</label>
+        <input type="text" id="gemini-model" value="gemini-2.5-flash">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="role-generador">Generar ejercicios con</label>
+        <select id="role-generador">
+          <option value="groq" selected>Groq</option>
+          <option value="gemini">Gemini</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="role-evaluador">Evaluar respuestas con</label>
+        <select id="role-evaluador">
+          <option value="groq">Groq</option>
+          <option value="gemini" selected>Gemini</option>
+        </select>
+      </div>
+    </div>
+    <p class="hint">
+      Las keys son gratis: Groq en <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>,
+      Gemini en <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.
+    </p>
+    <div class="checkbox-row">
+      <input type="checkbox" id="chk-recordar">
+      <label for="chk-recordar">Recordar mis API keys en este dispositivo (guardadas solo en este navegador, nunca se envían a ningún servidor propio)</label>
+    </div>
+    <div class="row-buttons">
+      <button class="secondary" id="btn-borrar-datos">Borrar progreso y keys guardadas en este dispositivo</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="sel-tema">Tema</label>
+      <select id="sel-tema">
+        <option value="Mixto (aleatorio)">Mixto (aleatorio)</option>
+        <option value="Límites">Límites</option>
+        <option value="Integrales">Integrales</option>
+        <option value="Derivadas">Derivadas</option>
+        <option value="Álgebra">Álgebra</option>
+        <option value="Lógica">Lógica</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="sel-dificultad">Dificultad</label>
+      <select id="sel-dificultad">
+        <option value="Fácil">Fácil</option>
+        <option value="Medio" selected>Medio</option>
+        <option value="Difícil">Difícil</option>
+      </select>
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="chk-adaptativo" checked>
+      <label for="chk-adaptativo">Dificultad adaptativa</label>
+    </div>
+    <button class="primary" id="btn-nuevo">Nuevo ejercicio</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="num" id="stat-total">0</div><div class="lbl">Intentos</div></div>
+    <div class="stat"><div class="num" id="stat-correctas">0</div><div class="lbl">Aciertos</div></div>
+    <div class="stat"><div class="num" id="stat-racha">0</div><div class="lbl">Racha</div></div>
+    <div class="stat"><div class="num" id="stat-mejor-racha">0</div><div class="lbl">Mejor racha</div></div>
+  </div>
+
+  <div id="question-area">
+    <div class="empty-state">Pulsa <strong>Nuevo ejercicio</strong> para empezar a entrenar.</div>
+  </div>
+
+  <footer>Los ejercicios y evaluaciones son generados por modelos de IA (Groq / Gemini) — pueden equivocarse; usa tu criterio.</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  const state = {
+    total: 0,
+    correctas: 0,
+    racha: 0,
+    mejorRacha: 0,
+    dificultadActual: "Medio",
+    ultimoEjercicio: null,
+    respondido: false,
+  };
+
+  const NIVELES = ["Fácil", "Medio", "Difícil"];
+
+  const el = (id) => document.getElementById(id);
+
+  const STATS_KEY = "gm_stats_v1";
+  const KEYS_KEY = "gm_keys_v1";
+
+  function guardarStats() {
+    try {
+      localStorage.setItem(STATS_KEY, JSON.stringify({
+        total: state.total,
+        correctas: state.correctas,
+        racha: state.racha,
+        mejorRacha: state.mejorRacha,
+        dificultadActual: state.dificultadActual,
+      }));
+    } catch (e) { /* localStorage no disponible (modo privado, etc.) — seguimos sin persistir */ }
+  }
+
+  function cargarStats() {
+    try {
+      const raw = localStorage.getItem(STATS_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (typeof s.total === "number") state.total = s.total;
+      if (typeof s.correctas === "number") state.correctas = s.correctas;
+      if (typeof s.racha === "number") state.racha = s.racha;
+      if (typeof s.mejorRacha === "number") state.mejorRacha = s.mejorRacha;
+      if (typeof s.dificultadActual === "string" && NIVELES.includes(s.dificultadActual)) {
+        state.dificultadActual = s.dificultadActual;
+      }
+    } catch (e) { /* ignoramos datos corruptos */ }
+  }
+
+  function guardarKeysSiCorresponde() {
+    try {
+      if (el("chk-recordar").checked) {
+        localStorage.setItem(KEYS_KEY, JSON.stringify({
+          groq: el("groq-key").value,
+          gemini: el("gemini-key").value,
+        }));
+      } else {
+        localStorage.removeItem(KEYS_KEY);
+      }
+    } catch (e) { /* localStorage no disponible — las keys solo viven en memoria */ }
+  }
+
+  function cargarKeys() {
+    try {
+      const raw = localStorage.getItem(KEYS_KEY);
+      if (!raw) return;
+      const k = JSON.parse(raw);
+      if (k.groq) el("groq-key").value = k.groq;
+      if (k.gemini) el("gemini-key").value = k.gemini;
+      el("chk-recordar").checked = true;
+    } catch (e) { /* ignoramos datos corruptos */ }
+  }
+
+  function borrarDatosGuardados() {
+    try {
+      localStorage.removeItem(STATS_KEY);
+      localStorage.removeItem(KEYS_KEY);
+    } catch (e) { /* nada que borrar si no hay localStorage */ }
+    state.total = 0;
+    state.correctas = 0;
+    state.racha = 0;
+    state.mejorRacha = 0;
+    state.dificultadActual = "Medio";
+    el("groq-key").value = "";
+    el("gemini-key").value = "";
+    el("chk-recordar").checked = false;
+    el("sel-dificultad").value = "Medio";
+    pintarStats();
+  }
+
+  el("btn-config-toggle").addEventListener("click", () => {
+    const panel = el("config-panel");
+    panel.style.display = panel.style.display === "none" ? "block" : "none";
+  });
+
+  el("chk-adaptativo").addEventListener("change", (e) => {
+    el("sel-dificultad").disabled = e.target.checked;
+    if (e.target.checked) {
+      el("sel-dificultad").value = state.dificultadActual;
+    }
+  });
+  el("sel-dificultad").disabled = el("chk-adaptativo").checked;
+
+  el("sel-dificultad").addEventListener("change", (e) => {
+    state.dificultadActual = e.target.value;
+  });
+
+  function pintarStats() {
+    el("stat-total").textContent = state.total;
+    el("stat-correctas").textContent = state.correctas;
+    el("stat-racha").textContent = state.racha;
+    el("stat-mejor-racha").textContent = state.mejorRacha;
+    guardarStats();
+  }
+
+  function ajustarDificultadAdaptativa(acerto) {
+    if (!el("chk-adaptativo").checked) return;
+    let idx = NIVELES.indexOf(state.dificultadActual);
+    if (acerto && state.racha > 0 && state.racha % 3 === 0 && idx < NIVELES.length - 1) {
+      idx += 1;
+    } else if (!acerto && state.racha === 0 && state.total >= 2 && idx > 0) {
+      idx -= 1;
+    }
+    state.dificultadActual = NIVELES[idx];
+    el("sel-dificultad").value = state.dificultadActual;
+  }
+
+  function temaEfectivo() {
+    const sel = el("sel-tema").value;
+    if (sel !== "Mixto (aleatorio)") return sel;
+    const temas = ["Límites", "Integrales", "Derivadas", "Álgebra", "Lógica"];
+    return temas[Math.floor(Math.random() * temas.length)];
+  }
+
+  function extraerJSON(texto) {
+    // Los modelos a veces envuelven el JSON en ```json ... ``` o añaden texto alrededor.
+    let t = texto.trim();
+    const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fence) t = fence[1].trim();
+    const first = t.indexOf("{");
+    const last = t.lastIndexOf("}");
+    if (first !== -1 && last !== -1 && last > first) {
+      t = t.substring(first, last + 1);
+    }
+    return JSON.parse(t);
+  }
+
+  async function llamarGroq(apiKey, model, systemPrompt, userPrompt) {
+    const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + apiKey,
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.8,
+      }),
+    });
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => "");
+      throw new Error("Groq respondió " + resp.status + ": " + body.slice(0, 300));
+    }
+    const data = await resp.json();
+    const content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    if (!content) throw new Error("Groq no devolvió contenido utilizable.");
+    return extraerJSON(content);
+  }
+
+  async function llamarGemini(apiKey, model, systemPrompt, userPrompt) {
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent?key=" + encodeURIComponent(apiKey);
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+        generationConfig: { temperature: 0.6 },
+      }),
+    });
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => "");
+      throw new Error("Gemini respondió " + resp.status + ": " + body.slice(0, 300));
+    }
+    const data = await resp.json();
+    const cand = data.candidates && data.candidates[0];
+    const content = cand && cand.content && cand.content.parts && cand.content.parts.map(p => p.text || "").join("");
+    if (!content) throw new Error("Gemini no devolvió contenido utilizable (posible bloqueo de seguridad).");
+    return extraerJSON(content);
+  }
+
+  function configDeRol(rol) {
+    const provider = el("role-" + rol).value;
+    if (provider === "groq") {
+      return { provider: "groq", apiKey: el("groq-key").value.trim(), model: el("groq-model").value.trim() };
+    }
+    return { provider: "gemini", apiKey: el("gemini-key").value.trim(), model: el("gemini-model").value.trim() };
+  }
+
+  async function llamarIA(rol, systemPrompt, userPrompt) {
+    const cfg = configDeRol(rol);
+    if (!cfg.apiKey) {
+      throw new Error(
+        "Falta la API key de " + (cfg.provider === "groq" ? "Groq" : "Gemini") +
+        " para el rol de " + rol + ". Ábrela en ⚙️ Configuración y pégala."
+      );
+    }
+    if (cfg.provider === "groq") {
+      return llamarGroq(cfg.apiKey, cfg.model, systemPrompt, userPrompt);
+    }
+    return llamarGemini(cfg.apiKey, cfg.model, systemPrompt, userPrompt);
+  }
+
+  function mostrarCargando(mensaje) {
+    el("question-area").innerHTML =
+      '<div class="qcard"><div class="loading"><div class="spinner"></div><span>' + mensaje + "</span></div></div>";
+  }
+
+  function mostrarError(mensaje, detalle) {
+    el("question-area").innerHTML =
+      '<div class="qcard"><div class="error-box"><strong>No se pudo continuar.</strong><br>' +
+      escapeHtml(mensaje) +
+      (detalle ? '<br><span style="opacity:0.8">' + escapeHtml(detalle) + "</span>" : "") +
+      "</div>" +
+      '<button class="secondary" id="btn-reintentar">Reintentar</button></div>';
+    const retry = el("btn-reintentar");
+    if (retry) retry.addEventListener("click", generarEjercicio);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+  }
+
+  function typeset(elNode) {
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise([elNode]).catch(() => {});
+    }
+  }
+
+  const SYSTEM_GENERADOR =
+    "Eres un generador experto de ejercicios de matemáticas y lógica en español, para entrenamiento cognitivo. " +
+    "Respondes EXCLUSIVAMENTE con un objeto JSON válido, sin texto antes ni después, sin backticks. " +
+    "Cada ejercicio es de opción múltiple con exactamente 4 opciones (A, B, C, D) y una sola correcta. " +
+    "Usa notación LaTeX con delimitadores $...$ para cualquier fórmula matemática. " +
+    "Varía los números y planteamientos; evita repetir siempre el mismo ejercicio de libro de texto.";
+
+  function promptGenerador(tema, dificultad) {
+    return (
+      'Genera UN ejercicio nuevo de opción múltiple sobre el tema "' + tema + '" ' +
+      'con nivel de dificultad "' + dificultad + '" (Fácil = repaso de conceptos básicos, ' +
+      'Medio = requiere aplicar 2-3 pasos, Difícil = requiere combinar varios conceptos o casos especiales). ' +
+      "Responde EXCLUSIVAMENTE con un JSON con esta forma exacta:\n" +
+      '{"enunciado": "planteamiento del problema, con LaTeX $...$ si aplica", ' +
+      '"opciones": {"A": "...", "B": "...", "C": "...", "D": "..."}, ' +
+      '"respuesta_correcta": "A|B|C|D", ' +
+      '"explicacion": "resolución paso a paso en español, con LaTeX si aplica"}'
+    );
+  }
+
+  const SYSTEM_EVALUADOR =
+    "Eres un evaluador matemático independiente y extremadamente riguroso. " +
+    "Se te da un ejercicio de opción múltiple y DEBES resolverlo tú mismo desde cero, paso a paso, " +
+    "sin dar por hecho que ninguna opción concreta es la correcta de antemano. " +
+    "Respondes EXCLUSIVAMENTE con un objeto JSON válido, sin texto antes ni después, sin backticks.";
+
+  function promptEvaluador(tema, enunciado, opciones) {
+    return (
+      'Resuelve de forma independiente este ejercicio de opción múltiple sobre "' + tema + '":\n\n' +
+      "Enunciado: " + enunciado + "\n" +
+      "Opciones:\n" +
+      "A) " + opciones.A + "\n" +
+      "B) " + opciones.B + "\n" +
+      "C) " + opciones.C + "\n" +
+      "D) " + opciones.D + "\n\n" +
+      "Responde EXCLUSIVAMENTE con un JSON con esta forma exacta:\n" +
+      '{"respuesta_correcta": "A|B|C|D", ' +
+      '"explicacion": "resolución paso a paso en español, con LaTeX si aplica", ' +
+      '"confianza": "alta|media|baja"}'
+    );
+  }
+
+  async function generarEjercicio() {
+    el("btn-nuevo").disabled = true;
+    const tema = temaEfectivo();
+    const dificultad = el("sel-dificultad").value;
+    mostrarCargando("Generando ejercicio de " + tema.toLowerCase() + " (" + dificultad.toLowerCase() + ")…");
+    try {
+      const ej = await llamarIA("generador", SYSTEM_GENERADOR, promptGenerador(tema, dificultad));
+      if (!ej || !ej.enunciado || !ej.opciones || !ej.respuesta_correcta) {
+        throw new Error("La IA generadora devolvió un formato inesperado.");
+      }
+      state.ultimoEjercicio = { tema, dificultad, ...ej };
+      state.respondido = false;
+      pintarEjercicio();
+    } catch (err) {
+      mostrarError("Error al generar el ejercicio.", err.message);
+    } finally {
+      el("btn-nuevo").disabled = false;
+    }
+  }
+
+  function pintarEjercicio() {
+    const ej = state.ultimoEjercicio;
+    const letras = ["A", "B", "C", "D"];
+    let html = '<div class="qcard">';
+    html += '<span class="topic-tag">' + escapeHtml(ej.tema) + " · " + escapeHtml(ej.dificultad) + "</span>";
+    html += '<div class="enunciado">' + ej.enunciado + "</div>";
+    html += '<div class="opciones" id="opciones-cont">';
+    letras.forEach((letra) => {
+      html +=
+        '<button class="opcion-btn" data-letra="' + letra + '">' +
+        '<span class="letra">' + letra + "</span><span>" + ej.opciones[letra] + "</span></button>";
+    });
+    html += "</div>";
+    html += '<div id="feedback-cont"></div>';
+    html += "</div>";
+    el("question-area").innerHTML = html;
+    typeset(el("question-area"));
+
+    el("opciones-cont").querySelectorAll(".opcion-btn").forEach((btn) => {
+      btn.addEventListener("click", () => elegirRespuesta(btn.getAttribute("data-letra")));
+    });
+  }
+
+  async function elegirRespuesta(letraElegida) {
+    if (state.respondido) return;
+    state.respondido = true;
+    const ej = state.ultimoEjercicio;
+    el("opciones-cont").querySelectorAll(".opcion-btn").forEach((b) => (b.disabled = true));
+    el("feedback-cont").innerHTML =
+      '<div class="loading"><div class="spinner"></div><span>Verificando con el evaluador…</span></div>';
+
+    try {
+      const evalRes = await llamarIA(
+        "evaluador",
+        SYSTEM_EVALUADOR,
+        promptEvaluador(ej.tema, ej.enunciado, ej.opciones)
+      );
+      if (!evalRes || !evalRes.respuesta_correcta) {
+        throw new Error("La IA evaluadora devolvió un formato inesperado.");
+      }
+      pintarFeedback(letraElegida, evalRes);
+    } catch (err) {
+      // Si falla el evaluador, usamos la respuesta del generador como respaldo y lo avisamos.
+      pintarFeedback(letraElegida, null, err.message);
+    }
+  }
+
+  function pintarFeedback(letraElegida, evalRes, errorEvaluador) {
+    const ej = state.ultimoEjercicio;
+    const correctaFinal = evalRes ? evalRes.respuesta_correcta : ej.respuesta_correcta;
+    const acerto = letraElegida === correctaFinal;
+
+    state.total += 1;
+    if (acerto) {
+      state.correctas += 1;
+      state.racha += 1;
+      state.mejorRacha = Math.max(state.mejorRacha, state.racha);
+    } else {
+      state.racha = 0;
+    }
+    ajustarDificultadAdaptativa(acerto);
+    pintarStats();
+
+    el("opciones-cont").querySelectorAll(".opcion-btn").forEach((b) => {
+      const letra = b.getAttribute("data-letra");
+      if (letra === correctaFinal) b.classList.add("correcta");
+      else if (letra === letraElegida) b.classList.add("incorrecta");
+    });
+
+    let html = '<div class="feedback">';
+    html +=
+      '<div class="veredicto ' + (acerto ? "ok" : "no") + '">' +
+      (acerto ? "✅ ¡Correcto!" : "❌ Incorrecto — la respuesta correcta es " + correctaFinal) +
+      "</div>";
+
+    if (errorEvaluador) {
+      html +=
+        '<div class="warn-box">No se pudo verificar con el evaluador independiente (' +
+        escapeHtml(errorEvaluador) +
+        "). Se muestra la respuesta del generador sin doble verificación.</div>";
+    } else if (evalRes.respuesta_correcta !== ej.respuesta_correcta) {
+      html +=
+        '<div class="warn-box">⚠️ El generador y el evaluador no coinciden: el generador propuso ' +
+        ej.respuesta_correcta + " y el evaluador (independiente) concluyó " + evalRes.respuesta_correcta +
+        ". Se usó la del evaluador como referencia, pero revisa ambas explicaciones con ojo crítico.</div>";
+    }
+
+    if (evalRes) {
+      html +=
+        '<div class="explicacion-block"><h3>Explicación del evaluador (' + (evalRes.confianza || "—") + " de confianza)</h3><div>" +
+        evalRes.explicacion + "</div></div>";
+    }
+    html +=
+      '<div class="explicacion-block"><h3>Explicación del generador</h3><div>' + ej.explicacion + "</div></div>";
+
+    html += '<div class="row-buttons"><button class="primary" id="btn-siguiente">Siguiente ejercicio</button></div>';
+    html += "</div>";
+
+    el("feedback-cont").innerHTML = html;
+    typeset(el("feedback-cont"));
+    el("btn-siguiente").addEventListener("click", generarEjercicio);
+  }
+
+  el("btn-nuevo").addEventListener("click", generarEjercicio);
+  el("groq-key").addEventListener("input", guardarKeysSiCorresponde);
+  el("gemini-key").addEventListener("input", guardarKeysSiCorresponde);
+  el("chk-recordar").addEventListener("change", guardarKeysSiCorresponde);
+  el("btn-borrar-datos").addEventListener("click", () => {
+    if (confirm("¿Borrar tu progreso y las API keys guardadas en este dispositivo? Esta acción no se puede deshacer.")) {
+      borrarDatosGuardados();
+    }
+  });
+
+  cargarStats();
+  cargarKeys();
+  el("sel-dificultad").value = state.dificultadActual;
+  pintarStats();
+})();
+</script>
+</body>
+</html>
