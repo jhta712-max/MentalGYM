@@ -159,26 +159,13 @@ window.MathJax = {
   </header>
 
   <div class="panel" id="config-panel" style="display:none;">
-    <h2>Configuración de IA</h2>
+    <h2>Configuración</h2>
     <div class="field-row">
       <div class="field">
-        <label for="groq-key">API key de Groq</label>
-        <input type="password" id="groq-key" placeholder="gsk_...">
+        <label for="app-secret">Clave de acceso</label>
+        <input type="password" id="app-secret" placeholder="tu clave personal">
       </div>
-      <div class="field">
-        <label for="gemini-key">API key de Gemini</label>
-        <input type="password" id="gemini-key" placeholder="AIza...">
-      </div>
-    </div>
-    <div class="field-row">
-      <div class="field">
-        <label for="groq-model">Modelo de Groq</label>
-        <input type="text" id="groq-model" value="llama-3.3-70b-versatile">
-      </div>
-      <div class="field">
-        <label for="gemini-model">Modelo de Gemini</label>
-        <input type="text" id="gemini-model" value="gemini-2.5-flash">
-      </div>
+      <div class="field"></div>
     </div>
     <div class="field-row">
       <div class="field">
@@ -197,15 +184,15 @@ window.MathJax = {
       </div>
     </div>
     <p class="hint">
-      Las keys son gratis: Groq en <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>,
-      Gemini en <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.
+      Las API keys de Groq y Gemini ya NO se piden aquí: viven de forma segura en un servidor (Supabase Edge Function) y nunca llegan a este navegador.
+      Esta página solo necesita tu <strong>clave de acceso</strong> personal para poder usar ese servidor — evita que desconocidos que encuentren esta URL pública gasten tu cuota gratuita de IA.
     </p>
     <div class="checkbox-row">
-      <input type="checkbox" id="chk-recordar">
-      <label for="chk-recordar">Recordar mis API keys en este dispositivo (guardadas solo en este navegador, nunca se envían a ningún servidor propio)</label>
+      <input type="checkbox" id="chk-recordar" checked>
+      <label for="chk-recordar">Recordar mi clave de acceso en este dispositivo</label>
     </div>
     <div class="row-buttons">
-      <button class="secondary" id="btn-borrar-datos">Borrar progreso y keys guardadas en este dispositivo</button>
+      <button class="secondary" id="btn-borrar-datos">Borrar progreso y clave guardada en este dispositivo</button>
     </div>
   </div>
 
@@ -301,14 +288,11 @@ window.MathJax = {
   function guardarKeysSiCorresponde() {
     try {
       if (el("chk-recordar").checked) {
-        localStorage.setItem(KEYS_KEY, JSON.stringify({
-          groq: el("groq-key").value,
-          gemini: el("gemini-key").value,
-        }));
+        localStorage.setItem(KEYS_KEY, JSON.stringify({ secret: el("app-secret").value }));
       } else {
         localStorage.removeItem(KEYS_KEY);
       }
-    } catch (e) { /* localStorage no disponible — las keys solo viven en memoria */ }
+    } catch (e) { /* localStorage no disponible — la clave solo vive en memoria */ }
   }
 
   function cargarKeys() {
@@ -316,8 +300,7 @@ window.MathJax = {
       const raw = localStorage.getItem(KEYS_KEY);
       if (!raw) return;
       const k = JSON.parse(raw);
-      if (k.groq) el("groq-key").value = k.groq;
-      if (k.gemini) el("gemini-key").value = k.gemini;
+      if (k.secret) el("app-secret").value = k.secret;
       el("chk-recordar").checked = true;
     } catch (e) { /* ignoramos datos corruptos */ }
   }
@@ -332,8 +315,7 @@ window.MathJax = {
     state.racha = 0;
     state.mejorRacha = 0;
     state.dificultadActual = "Medio";
-    el("groq-key").value = "";
-    el("gemini-key").value = "";
+    el("app-secret").value = "";
     el("chk-recordar").checked = false;
     el("sel-dificultad").value = "Medio";
     pintarStats();
@@ -396,74 +378,43 @@ window.MathJax = {
     return JSON.parse(t);
   }
 
-  async function llamarGroq(apiKey, model, systemPrompt, userPrompt) {
-    const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  // Supabase es público por diseño: el "anon key" está pensado para vivir en el
+  // navegador. Lo que protege tu cuota de IA es la Edge Function en el servidor
+  // (que guarda las API keys reales) más la clave de acceso personal (x-app-secret).
+  const SUPABASE_URL = "https://xbnnnkrlysckjqasboot.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhibm5ua3JseXNja2pxYXNib290Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3NTg4ODgsImV4cCI6MjEwMzMzNDg4OH0.QfjJrIO9szuHSyHhAhcQqp8jBuc3eHgJWEUeDLKlSno";
+
+  async function llamarProxy(provider, systemPrompt, userPrompt) {
+    const secreto = el("app-secret").value.trim();
+    const resp = await fetch(SUPABASE_URL + "/functions/v1/ai-proxy", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer " + apiKey,
+        "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+        "apikey": SUPABASE_ANON_KEY,
+        "x-app-secret": secreto,
       },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.8,
-      }),
+      body: JSON.stringify({ provider: provider, systemPrompt: systemPrompt, userPrompt: userPrompt }),
     });
+    const data = await resp.json().catch(() => null);
     if (!resp.ok) {
-      const body = await resp.text().catch(() => "");
-      throw new Error("Groq respondió " + resp.status + ": " + body.slice(0, 300));
+      if (resp.status === 401) {
+        throw new Error("Clave de acceso incorrecta o vacía. Ábrela en ⚙️ Configuración y pégala.");
+      }
+      const detalle = data && data.error ? data.error : "HTTP " + resp.status;
+      throw new Error("El servidor respondió con un error: " + detalle);
     }
-    const data = await resp.json();
-    const content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-    if (!content) throw new Error("Groq no devolvió contenido utilizable.");
-    return extraerJSON(content);
-  }
-
-  async function llamarGemini(apiKey, model, systemPrompt, userPrompt) {
-    const url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent?key=" + encodeURIComponent(apiKey);
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-        generationConfig: { temperature: 0.6 },
-      }),
-    });
-    if (!resp.ok) {
-      const body = await resp.text().catch(() => "");
-      throw new Error("Gemini respondió " + resp.status + ": " + body.slice(0, 300));
-    }
-    const data = await resp.json();
-    const cand = data.candidates && data.candidates[0];
-    const content = cand && cand.content && cand.content.parts && cand.content.parts.map(p => p.text || "").join("");
-    if (!content) throw new Error("Gemini no devolvió contenido utilizable (posible bloqueo de seguridad).");
-    return extraerJSON(content);
+    if (!data || !data.content) throw new Error("El servidor no devolvió contenido utilizable.");
+    return extraerJSON(data.content);
   }
 
   function configDeRol(rol) {
-    const provider = el("role-" + rol).value;
-    if (provider === "groq") {
-      return { provider: "groq", apiKey: el("groq-key").value.trim(), model: el("groq-model").value.trim() };
-    }
-    return { provider: "gemini", apiKey: el("gemini-key").value.trim(), model: el("gemini-model").value.trim() };
+    return { provider: el("role-" + rol).value };
   }
 
   async function llamarIA(rol, systemPrompt, userPrompt) {
     const cfg = configDeRol(rol);
-    if (!cfg.apiKey) {
-      throw new Error(
-        "Falta la API key de " + (cfg.provider === "groq" ? "Groq" : "Gemini") +
-        " para el rol de " + rol + ". Ábrela en ⚙️ Configuración y pégala."
-      );
-    }
-    if (cfg.provider === "groq") {
-      return llamarGroq(cfg.apiKey, cfg.model, systemPrompt, userPrompt);
-    }
-    return llamarGemini(cfg.apiKey, cfg.model, systemPrompt, userPrompt);
+    return llamarProxy(cfg.provider, systemPrompt, userPrompt);
   }
 
   function mostrarCargando(mensaje) {
@@ -660,11 +611,10 @@ window.MathJax = {
   }
 
   el("btn-nuevo").addEventListener("click", generarEjercicio);
-  el("groq-key").addEventListener("input", guardarKeysSiCorresponde);
-  el("gemini-key").addEventListener("input", guardarKeysSiCorresponde);
+  el("app-secret").addEventListener("input", guardarKeysSiCorresponde);
   el("chk-recordar").addEventListener("change", guardarKeysSiCorresponde);
   el("btn-borrar-datos").addEventListener("click", () => {
-    if (confirm("¿Borrar tu progreso y las API keys guardadas en este dispositivo? Esta acción no se puede deshacer.")) {
+    if (confirm("¿Borrar tu progreso y la clave de acceso guardada en este dispositivo? Esta acción no se puede deshacer.")) {
       borrarDatosGuardados();
     }
   });
